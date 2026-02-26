@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ews-mcp-server
+  labels:
+    app: ews-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ews-mcp-server
+  template:
+    metadata:
+      labels:
+        app: ews-mcp-server
+    spec:
+      containers:
+        - name: ews-mcp-server
+          # 请在此替换为你构建后推送到网关的真实镜像地质
+          image: my-registry/ews-mcp-server:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3101
+          env:
+            - name: MCP_MODE
+              value: "sse"
+            - name: MCP_PORT
+              value: "3101"
+            - name: EWS_ENDPOINT
+              value: "https://mail.pactera.com/EWS/Exchange.asmx"
+            - name: EWS_DOMAIN
+              value: "YOUR_DOMAIN"
+            # 生产环境强烈建议将密文放置于 K8s Secret 中引用，此处仅作演示
+            - name: EWS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ews-credentials
+                  key: username
+            - name: EWS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ews-credentials
+                  key: password
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ews-mcp-service
+spec:
+  selector:
+    app: ews-mcp-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3101
+  type: ClusterIP
