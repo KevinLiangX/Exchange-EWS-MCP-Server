@@ -1,0 +1,46 @@
+name: Build Binaries (Mac, Linux, Win)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch: # 允许网页上手动点击运行打包
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # 涵盖您需要的三大系统平台
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Dependencies
+        run: |
+          uv sync --frozen
+          # 动态追加 pyinstaller 用于当前平台的单文件编译
+          uv add pyinstaller
+
+      - name: Build with PyInstaller
+        # 使用 --clean 彻底清理历史; --onefile 打包为单文件二进制
+        run: uv run pyinstaller --onefile --clean --name ews-mcp-server main.py
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ews-mcp-server-${{ runner.os }}
+          path: dist/ews-mcp-server*
+          retention-days: 7
